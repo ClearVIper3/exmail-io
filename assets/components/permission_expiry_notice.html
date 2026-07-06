@@ -1,0 +1,18 @@
+<!-- 权限到期通知卡片 -->
+<!-- 变量: {{PERMISSION_NAME}}, {{EXPIRE_DATE}}, {{DAYS_LEFT}}, {{RENEW_LINK}}, {{SYSTEM_NAME}} -->
+<div style="border:1px solid #fff3cd; border-radius:8px; padding:14px 16px; margin:12px 0; background:#fffdf5;">
+  <div style="display:flex; align-items:center; margin-bottom:10px;">
+    <span style="font-size:18px; margin-right:8px;">⚠️</span>
+    <span style="font-weight:bold; color:#856404; font-size:14px;">权限即将到期提醒</span>
+  </div>
+  <table style="font-size:13px; color:#555; border-collapse:collapse; width:100%;">
+    <tr><td style="padding:4px 12px 4px 0; font-weight:bold; white-space:nowrap;">权限名称</td><td>{{PERMISSION_NAME}}</td></tr>
+    <tr><td style="padding:4px 12px 4px 0; font-weight:bold; white-space:nowrap;">所属系统</td><td>{{SYSTEM_NAME}}</td></tr>
+    <tr><td style="padding:4px 12px 4px 0; font-weight:bold; white-space:nowrap;">到期时间</td><td>{{EXPIRE_DATE}}</td></tr>
+    <tr><td style="padding:4px 12px 4px 0; font-weight:bold; white-space:nowrap;">剩余天数</td><td style="color:#d32f2f; font-weight:bold;">{{DAYS_LEFT}} 天</td></tr>
+  </table>
+  <div style="margin-top:12px; padding-top:10px; border-top:1px solid #fff3cd;">
+    <a href="{{RENEW_LINK}}" style="display:inline-block; background:#ffc107; color:#333; padding:6px 16px; border-radius:4px; text-decoration:none; font-size:13px; font-weight:bold;">立即续期</a>
+    <span style="font-size:11px; color:#999; margin-left:12px;">过期后将自动收回权限</span>
+  </div>
+</div>

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<body style="font-family:'Microsoft YaHei',Arial,sans-serif; margin:0; padding:20px; background:#fff;">
+<!-- 线程追问邮件模板 -->
+<!-- 变量: {{BODY_TEXT}}, {{SIGNATURE}}, {{QUOTE_SENDER}}, {{QUOTE_DATE}}, {{QUOTE_SUBJECT}}, {{QUOTE_BODY}} -->
+
+<div style="font-size:14px; color:#333; line-height:1.8; margin-bottom:20px;">
+{{BODY_TEXT}}
+</div>
+
+{{SIGNATURE}}
+
+<!-- 引用原文 -->
+<div style="margin-top:24px; padding-top:12px; border-top:1px solid #eee;">
+  <div style="font-size:12px; color:#999; margin-bottom:8px;">
+    --------- 原始邮件 ---------<br>
+    <b>发件人:</b> {{QUOTE_SENDER}}<br>
+    <b>发送时间:</b> {{QUOTE_DATE}}<br>
+    <b>主题:</b> {{QUOTE_SUBJECT}}<br>
+  </div>
+  <div style="border-left:3px solid #ddd; padding:8px 12px; margin:8px 0; color:#666; font-size:13px; background:#f9f9f9; white-space:pre-wrap;">{{QUOTE_BODY}}</div>
+</div>
+</body>
+</html>

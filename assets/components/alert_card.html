@@ -1,0 +1,17 @@
+<!-- P0/P1 故障告警卡片 -->
+<!-- 变量: {{ALERT_LEVEL}}, {{ALERT_COLOR}}, {{SERVICE_NAME}}, {{ALERT_TITLE}}, {{IMPACT}}, {{OWNER}}, {{START_TIME}}, {{DETAIL_LINK}} -->
+<div style="border-left:4px solid {{ALERT_COLOR}}; border:1px solid #f0d0d0; border-radius:8px; padding:16px; margin:12px 0; background:#fff8f8;">
+  <div style="display:flex; align-items:center; margin-bottom:10px;">
+    <span style="background:{{ALERT_COLOR}}; color:#fff; font-size:12px; font-weight:bold; padding:2px 8px; border-radius:4px; margin-right:10px;">{{ALERT_LEVEL}}</span>
+    <span style="font-weight:bold; font-size:15px; color:#333;">{{ALERT_TITLE}}</span>
+  </div>
+  <table style="font-size:13px; color:#555; border-collapse:collapse; width:100%;">
+    <tr><td style="padding:4px 12px 4px 0; font-weight:bold; white-space:nowrap;">服务名称</td><td>{{SERVICE_NAME}}</td></tr>
+    <tr><td style="padding:4px 12px 4px 0; font-weight:bold; white-space:nowrap;">影响范围</td><td>{{IMPACT}}</td></tr>
+    <tr><td style="padding:4px 12px 4px 0; font-weight:bold; white-space:nowrap;">服务责任人</td><td>{{OWNER}}</td></tr>
+    <tr><td style="padding:4px 12px 4px 0; font-weight:bold; white-space:nowrap;">触发时间</td><td>{{START_TIME}}</td></tr>
+  </table>
+  <div style="margin-top:12px; padding-top:10px; border-top:1px solid #f0d0d0;">
+    <a href="{{DETAIL_LINK}}" style="color:#d32f2f; text-decoration:none; font-size:13px; font-weight:bold;">查看告警详情 →</a>
+  </div>
+</div>

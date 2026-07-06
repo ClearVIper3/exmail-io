@@ -1,0 +1,11 @@
+<!-- 通知邮件格式标签
+  占位符：TYPE 通知类型，如"系统维护"/"安全提醒"/"人事流程"/"行政通知"/"安全策略"
+         EFFECTIVE 生效时间
+         COLOR 主题色（默认 #ff7d00）
+-->
+<div style="border-left:4px solid {{COLOR}};background:#fffbe6;padding:12px 16px;margin:8px 0;font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;">
+  <div>
+    <span style="display:inline-block;padding:2px 10px;background:{{COLOR}};color:#fff;font-size:12px;border-radius:3px;font-weight:600;">{{TYPE}}</span>
+    <span style="margin-left:10px;color:#86909c;font-size:12px;">📅 生效时间：{{EFFECTIVE}}</span>
+  </div>
+</div>

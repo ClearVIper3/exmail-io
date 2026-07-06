@@ -1,0 +1,15 @@
+<!-- 通用数据表格框架（自行填 thead/tbody）
+  占位符：HEADERS（<th>...</th>...）和 ROWS（<tr><td>...</td></tr>...）
+-->
+<table style="border-collapse:collapse;margin:8px 0;font-size:13px;font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;">
+  <thead>
+    <tr style="background:#f7f8fa;color:#1d2129;">{{HEADERS}}</tr>
+  </thead>
+  <tbody style="color:#4e5969;">
+    {{ROWS}}
+  </tbody>
+</table>
+<style>
+  table th { padding:8px 12px; border:1px solid #e5e6eb; font-weight:600; text-align:left; }
+  table td { padding:8px 12px; border:1px solid #e5e6eb; }
+</style>

@@ -1,0 +1,33 @@
+<!-- 审批邮件卡片
+  占位符：
+    TYPE      审批类型，如"差旅费报销" / "合规审批" / "采购审批" / "资源申请"
+    APPLICANT 申请人，如"张伟（市场部）"
+    AMOUNT    金额，如"¥38,000"（无金额时填空字符串则该行隐藏，需手动删行）
+    REASON    事由
+    DEADLINE  截止时间，如"明天 18:00" / "3 天前（已逾期）"
+    STATUS    状态：待我审批 / 已通过 / 已完成 / 已驳回
+    STATUS_COLOR  状态颜色：#ff7d00（待审批黄）/ #00b42a（已通过绿）/ #f53f3f（驳回红）
+-->
+<table style="width:100%;max-width:520px;border:1px solid #e5e6eb;border-radius:6px;border-collapse:separate;background:#ffffff;font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;">
+  <tr>
+    <td style="padding:14px 16px;background:#f7f8fa;border-bottom:1px solid #e5e6eb;border-radius:6px 6px 0 0;">
+      <span style="font-size:14px;color:#1d2129;font-weight:600;">📋 审批邮件</span>
+      <span style="float:right;display:inline-block;padding:2px 8px;background:{{STATUS_COLOR}};color:#fff;font-size:12px;border-radius:10px;">{{STATUS}}</span>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:16px;font-size:13px;color:#4e5969;line-height:2;">
+      <div><span style="color:#86909c;display:inline-block;width:80px;">审批类型：</span><span style="color:#1d2129;">{{TYPE}}</span></div>
+      <div><span style="color:#86909c;display:inline-block;width:80px;">申请人：</span><span style="color:#1d2129;">{{APPLICANT}}</span></div>
+      <div><span style="color:#86909c;display:inline-block;width:80px;">金额：</span><span style="color:#f53f3f;font-weight:600;">{{AMOUNT}}</span></div>
+      <div><span style="color:#86909c;display:inline-block;width:80px;">事由：</span><span style="color:#1d2129;">{{REASON}}</span></div>
+      <div><span style="color:#86909c;display:inline-block;width:80px;">截止：</span><span style="color:#1d2129;">{{DEADLINE}}</span></div>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:12px 16px;background:#fafbfc;border-top:1px solid #e5e6eb;border-radius:0 0 6px 6px;text-align:right;">
+      <a href="#" style="display:inline-block;padding:6px 16px;background:#165dff;color:#fff;text-decoration:none;border-radius:4px;font-size:13px;">同意</a>
+      <a href="#" style="display:inline-block;padding:6px 16px;margin-left:8px;background:#fff;color:#4e5969;border:1px solid #c9cdd4;text-decoration:none;border-radius:4px;font-size:13px;">驳回</a>
+    </td>
+  </tr>
+</table>

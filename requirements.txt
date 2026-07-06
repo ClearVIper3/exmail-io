@@ -1,0 +1,2 @@
+# 本 skill 仅依赖 Python 3.8+ 标准库：imaplib, smtplib, email, ssl, json, argparse
+# 此文件保留为占位，便于在受限环境下声明 "无第三方依赖"。

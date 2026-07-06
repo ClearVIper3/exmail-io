@@ -1,0 +1,13 @@
+<!-- 通用「VP/上级 → 你」邮件
+  占位符（下方使用）：BODY / DEADLINE_LINE / IMG_TAG_OR_EMPTY / LINK_HTML
+  （发件人姓名/职位通过 SMTP 头部 From-Name 设置，不在正文中渲染）
+-->
+<div style="font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;font-size:14px;color:#1d2129;line-height:1.8;max-width:680px;">
+  <p>{{BODY}}</p>
+  {{DEADLINE_LINE}}
+  {{IMG_TAG_OR_EMPTY}}
+  {{LINK_HTML}}
+  <div style="margin-top:24px;padding-top:12px;border-top:1px solid #e5e6eb;color:#86909c;font-size:12px;">
+    <div style="display:inline-block;padding:2px 8px;border:1px solid #d8e1f3;border-radius:3px;background:#f3f7ff;color:#5b88d6;">📱 发自我的企业微信</div>
+  </div>
+</div>
