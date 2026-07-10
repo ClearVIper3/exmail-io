@@ -1,6 +1,6 @@
 ---
 name: exmail-io
-description: 通过 IMAP/SMTP 公有协议在腾讯企业邮箱（企业微信邮箱 / exmail.qq.com）收发邮件的技能，预置 imap.exmail.qq.com:993 与 smtp.exmail.qq.com:465 配置。支持收件箱列表/搜索/正文读取/附件下载/标记已读/修改邮件日期，以及纯文本/HTML/附件/抄送/密送/内联图片（cid）/JSON 描述完整邮件/线程合并（In-Reply-To/References）/自定义头部 等发件能力。内置测试素材库（附件/内联图/HTML 组件/邮件模板）与拼装工具，可快速构造 E2E 评测所需的各类邮件。当用户需要"收企业邮箱邮件 / 发企业邮箱邮件 / 读企业微信邮箱 / 查企微邮件 / receive exmail / send exmail / 检查未读邮件 / 下载邮件附件 / 回复企业邮件 / 内联图片邮件 / 富文本邮件 / 构造测试邮件 / E2E 评测邮件 / 修改邮件日期 / 篡改邮件时间"等时使用，即使用户没有显式说出 IMAP / SMTP 也应使用本技能。
+description: 通过 IMAP/SMTP 公有协议在腾讯企业邮箱（企业微信邮箱 / exmail.qq.com）收发邮件的技能，预置 imap.exmail.qq.com:993 与 smtp.exmail.qq.com:465 配置。支持收件箱列表/搜索/正文读取/附件下载/标记已读/修改邮件日期，以及纯文本/HTML/附件/抄送/密送/内联图片（cid）/JSON 描述完整邮件/线程合并（In-Reply-To/References）/自定义头部 等发件能力。内置邮件素材库（附件/内联图/HTML 组件/邮件模板）与拼装工具，可快速构造各类邮件。当用户需要"收企业邮箱邮件 / 发企业邮箱邮件 / 读企业微信邮箱 / 查企微邮件 / receive exmail / send exmail / 检查未读邮件 / 下载邮件附件 / 回复企业邮件 / 内联图片邮件 / 富文本邮件 / 构造邮件 / 修改邮件日期 / 篡改邮件时间"等时使用，即使用户没有显式说出 IMAP / SMTP 也应使用本技能。
 ---
 
 # Exmail I/O Skill
@@ -38,7 +38,7 @@ IMAP `imap.exmail.qq.com:993`（SSL）/ SMTP `smtp.exmail.qq.com:465`（SSL）�
 
 如果用户用登录密码尝试且认证失败，立即提示：「企业邮箱已开启安全登录，请使用客户端专用密码（不是登录密码）」并指引到 `references/get-client-password.md`。
 
-> 💡 **联调测试场景**：当用户提及"主测试号 / 刘畅 / wktest.site 测试账号"等内置联调身份时，直接读取 `references/test-accounts.md` 中登记的邮箱地址与客户端专用密码，通过 `--username` / `--password` 传给脚本，**不要再追问用户**。
+> 💡 **预配置账号场景**：当用户提及某个已登记的账号标识时，直接读取 `references/test-accounts.md` 中登记的邮箱地址与客户端专用密码，通过 `--username` / `--password` 传给脚本，**不要再追问用户**。
 
 ### 步骤 2：判断意图并路由
 
@@ -151,7 +151,7 @@ python scripts/exmail.py modify-date --uid 12345 --folder "Sent Messages" --new-
 >
 > ⚠️ 注意：修改日期会生成新 UID，原 UID 默认被删除。如需保留原件请加 `--keep-original`。
 >
-> 💡 **决策指引**：对用户邮箱中的真实邮件操作时，**默认加 `--keep-original`**，确认无误后再手动删除原件。仅在构造测试数据等明确不需要保留的场景下省略该参数。
+> 💡 **决策指引**：对用户邮箱中的真实邮件操作时，**默认加 `--keep-original`**，确认无误后再手动删除原件。仅在明确不需要保留原件的场景下省略该参数。
 
 #### A.6 中文/复杂搜索
 
@@ -235,7 +235,7 @@ python scripts/render_email.py compose \
 python scripts/exmail.py send --from-json ./mail.json
 ```
 
-> 模板/组件占位符清单见 `assets/index.md`；构造测试邮件时**优先复用 templates + components**。
+> 模板/组件占位符清单见 `assets/index.md`；构造邮件时**优先复用 templates + components**。
 
 #### Python 调用
 
@@ -280,7 +280,7 @@ exmail-io/
 │   ├── exmail.py                         # 核心 CLI + 库（IMAP+SMTP 一体，~1500 行，勿整体读取）
 │   └── render_email.py                   # 邮件正文拼装工具（模板+组件→HTML/JSON）
 ├── assets/
-│   ├── index.md                          # ⭐ 测试素材库导航（必读）
+│   ├── index.md                          # ⭐ 邮件素材库导航（必读）
 │   ├── subjects.yaml                     # 主题文案池
 │   ├── attachments/                      # 通用附件（readable / locked / confidential）
 │   ├── inline_images/                    # 通用内联 PNG（架构图/监控/截图/海报等）
@@ -291,11 +291,11 @@ exmail-io/
     ├── get-client-password.md            # 客户端专用密码获取步骤
     ├── imap-search.md                    # IMAP SEARCH 语法速查
     ├── send-from-json.md                 # 复杂邮件 JSON 描述 schema
-    ├── test-accounts.md                  # 内置测试账号（仅联调用）
+    ├── test-accounts.md                  # 预配置的账号凭证
     └── troubleshooting.md                # 故障排查
 ```
 
-> 📦 **测试 / E2E 评测场景构造邮件时**：先看 `assets/index.md`，里面已经预置了
+> 📦 **构造邮件时**：先看 `assets/index.md`，里面已经预置了
 > 附件（含不可读 / 保密变体）、内联图、审批卡片 / 通知标签 / 保密 banner / 代码
 > 块 / 表格等 HTML 组件，**不要重新造轮子**，直接复用并替换 `{{占位符}}` 即可。
 

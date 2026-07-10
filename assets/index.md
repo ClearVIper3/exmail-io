@@ -1,6 +1,6 @@
-# Assets 通用素材库
+# Assets 邮件素材库
 
-本目录提供**测试 / 演示 / E2E 评测**场景下构造邮件所需的全部预制素材。
+本目录提供构造邮件所需的全部预制素材（附件 / 内联图 / HTML 组件 / 邮件模板）。
 SKILL 在收到「构造若干邮件 + 含附件 / 内联图 / 审批卡片 / 通知标签…」类需求时，
 **优先复用本目录文件，不要重复造轮子**。
 
@@ -67,7 +67,7 @@ assets/
 
 | 文件 | 用途 / 出现场景 |
 |------|------|
-| `return_codes.xlsx` (~126KB) | 「返回码对照表」——接口联调类邮件 |
+| `return_codes.xlsx` (~126KB) | 「返回码对照表」——技术参考类邮件 |
 | `compliance_report.pdf` | 「合规评估报告」——合规审批 |
 | `complaint_detail.pdf` (~580KB语义) | 「投诉详情」——客户投诉 |
 | `dd_report_v3.pdf` | 「尽调报告 v3」——客户邮件 |
@@ -78,7 +78,7 @@ assets/
 | `design_doc.pdf` | 「设计文档」 |
 | `plan_compare_v2.pdf` | 「方案对比 v2」 |
 | `vpn_policy_detail.pdf` | 「VPN 策略详情」 |
-| `cooperation_plan_v1.pdf` | 「合作方案 v1」（注入 case 用） |
+| `cooperation_plan_v1.pdf` | 「合作方案 v1」 |
 | `expense_detail.pdf` | 「报销明细」 |
 | `material_list.pdf` | 「物料清单」 |
 | `quotation.pdf` | 「报价单」 |
@@ -224,7 +224,7 @@ python scripts/exmail.py send \
 
 ## 主题文案池（subjects.yaml）
 
-按类别组织的主题字符串列表，供批量生成第三层邮件时随机/顺序选取。
+按类别组织的主题字符串列表，供批量生成邮件时随机/顺序选取。
 不需要 PyYAML，可用 stdlib 简单解析（行首 `-` 取条目）。
 
 类别：
@@ -236,7 +236,7 @@ python scripts/exmail.py send \
 - `activity` — 活动/邀请
 - `subscription` — 订阅推送
 - `fyi` — FYI 通用
-- `old_misc` — "7 天外"历史邮件填充
+- `old_misc` — "7 天外"历史归档邮件
 
 ## SMTP 协议层无法表达的语义（必须妥协）
 
@@ -245,7 +245,7 @@ python scripts/exmail.py send \
 | 语义 | 妥协方案 |
 |------|---------|
 | **DDL 已过期 / 3 天前** | 在正文文字写明「截止：3 天前（已逾期）」 |
-| **真实历史时间（7 天外）** | SMTP `Date:` 头可写过去，但服务端展示**收信时刻**；需要"历史邮件"效果时，建议直接发送（不必伪造时间）并在正文标注 |
+| **历史时间（7 天外）** | SMTP `Date:` 头可写过去，但服务端展示**收信时刻**；需要"历史邮件"效果时，建议直接发送（不必伪造时间）并在正文标注 |
 | **星标联系人** | 收件方手动星标，不可构造 |
 | **免提醒** | 客户端规则匹配，不可构造 |
 | **真实 EAS 审批卡片** | 用 `approval_card.html` 视觉模拟 |

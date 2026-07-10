@@ -103,7 +103,7 @@ def _resolve_credentials(
     """解析凭证：必须通过 CLI --username / --password 提供。"""
     if not cli_username or not cli_password:
         raise SystemExit(
-            "凭证缺失。请从 references/test-accounts.md 读取测试账号，"
+            "凭证缺失。请从 references/test-accounts.md 读取预配置的账号凭证，"
             "或询问用户获取邮箱地址与客户端专用密码，"
             "然后通过 --username / --password 传入。"
         )

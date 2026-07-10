@@ -1,28 +1,28 @@
-# 内置测试账号
+# 预配置账号凭证
 
-本文件登记本 skill 端到端联调 / 调试用的腾讯企业邮箱测试账号。
+本文件登记本 skill 使用的腾讯企业邮箱账号凭证。
 
-> ⚠️ 仅供测试使用。生产场景通过 `--username` / `--password` 传入用户自己的凭证，**不要**把这些密码写到生产系统里。
-> 🔒 公开版已移除所有明文客户端专用密码与企业内测账号；下文仅保留结构示意，密码一律以占位符表示。
+> ⚠️ 仅供演示 / 开发使用。正式场景通过 `--username` / `--password` 传入用户自己的凭证，**不要**把这些密码写到生产系统里。
+> 🔒 公开版已移除所有明文客户端专用密码与企业内部账号；下文仅保留结构示意，密码一律以占位符表示。
 
 ## 账号列表（结构示意，密码已脱敏）
 
 | 标识 | 邮箱 | 客户端专用密码 | 说明 |
 |------|------|----------------|------|
-| 主测试号 | `主测试号@example-test.site` | `<CLIENT_APP_PASSWORD>` | 默认账号；多数收件 / 状态管理用例的主体 |
-| 开发组成员 A | `dev-a@example-test.site` | `<CLIENT_APP_PASSWORD>` | 开发组成员，用于多方收发场景 |
-| 开发组成员 B | `dev-b@example-test.site` | `<CLIENT_APP_PASSWORD>` | 开发组成员，用于多方收发场景 |
-| 测试组成员 A | `qa-a@example-test.site` | `<CLIENT_APP_PASSWORD>` | 测试组成员，用于多方收发场景 |
-| 产品部成员 A | `pm-a@example-test.site` | `<CLIENT_APP_PASSWORD>` | 产品部成员，用于跨部门协作场景 |
-| 财务部成员 A | `fin-a@example-test.site` | `<CLIENT_APP_PASSWORD>` | 财务部成员，用于跨部门协作场景 |
-| 管理层成员 A | `mgr-a@example-test.site` | `<CLIENT_APP_PASSWORD>` | 管理层成员，用于审批 / 汇报类场景 |
-| 人事部成员 A | `hr-a@example-test.site` | `<CLIENT_APP_PASSWORD>` | 人事部成员，用于通知 / 招聘类场景 |
+| 主账号 | `main@example-test.site` | `<CLIENT_APP_PASSWORD>` | 默认账号；多数收件 / 状态管理操作的主体 |
+| 开发组成员 A | `dev-a@example-test.site` | `<CLIENT_APP_PASSWORD>` | 开发组成员，用于多方收发 |
+| 开发组成员 B | `dev-b@example-test.site` | `<CLIENT_APP_PASSWORD>` | 开发组成员，用于多方收发 |
+| 测试组成员 A | `qa-a@example-test.site` | `<CLIENT_APP_PASSWORD>` | 测试组成员，用于多方收发 |
+| 产品部成员 A | `pm-a@example-test.site` | `<CLIENT_APP_PASSWORD>` | 产品部成员，用于跨部门协作 |
+| 财务部成员 A | `fin-a@example-test.site` | `<CLIENT_APP_PASSWORD>` | 财务部成员，用于跨部门协作 |
+| 管理层成员 A | `mgr-a@example-test.site` | `<CLIENT_APP_PASSWORD>` | 管理层成员，用于审批 / 汇报 |
+| 人事部成员 A | `hr-a@example-test.site` | `<CLIENT_APP_PASSWORD>` | 人事部成员，用于通知 / 招聘 |
 
-> 真实联调用例请使用你自己的腾讯企业邮箱账号，按 `references/get-client-password.md` 生成客户端专用密码后，通过 `--username` / `--password` 传入。
+> 实际使用请填入你自己的腾讯企业邮箱账号，按 `references/get-client-password.md` 生成客户端专用密码后，通过 `--username` / `--password` 传入。
 
-### 企业内测账号（已移除）
+### 企业内部账号（已移除）
 
-原 `yxznit.cn` 域的 40 余个企业内测账号（含真实姓名与职位）**已在公开版中移除**，以避免泄露真实人员信息与可用凭证。
+原 `yxznit.cn` 域的 40 余个企业内部账号（含真实姓名与职位）**已在公开版中移除**，以避免泄露真实人员信息与可用凭证。
 
 > 密码均为腾讯企业邮箱「客户端专用密码」（非网页登录密码），可直接用于 IMAP / SMTP 登录。
 > 服务器配置已固定为 `imap.exmail.qq.com:993` / `smtp.exmail.qq.com:465`，无需额外提供。
@@ -42,20 +42,20 @@
 
 ## Agent 使用方式
 
-当任务涉及"用主测试号 / 测试账号收发邮件"时，agent 直接读取用户提供的邮箱地址和客户端专用密码，通过 `--username` / `--password` 传给 `scripts/exmail.py`，无需追问用户：
+当任务涉及"用某个已登记账号收发邮件"时，agent 直接读取用户提供的邮箱地址和客户端专用密码，通过 `--username` / `--password` 传给 `scripts/exmail.py`，无需追问用户：
 
 ```bash
-# 主测试号查收件箱
+# 主账号查收件箱
 python scripts/exmail.py \
-  --username 主测试号@example-test.site --password <CLIENT_APP_PASSWORD> \
+  --username main@example-test.site --password <CLIENT_APP_PASSWORD> \
   inbox --limit 10
 
-# 成员 A 给主测试号发邮件
+# 成员 A 给主账号发邮件
 python scripts/exmail.py \
   --username dev-a@example-test.site --password <CLIENT_APP_PASSWORD> \
-  send --to 主测试号@example-test.site --subject "测试" --body "hello"
+  send --to main@example-test.site --subject "同步" --body "hello"
 ```
 
 ## 维护
 
-新增 / 替换测试账号时，直接编辑本文件的"账号列表"表格即可，**不需要改动 `scripts/exmail.py`**。
+新增 / 替换账号凭证时，直接编辑本文件的"账号列表"表格即可，**不需要改动 `scripts/exmail.py`**。

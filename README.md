@@ -23,7 +23,7 @@
 
 ### 凭证传递
 
-Agent 通过 CLI 参数 `--username` / `--password` 将凭证传给脚本。凭证来源于用户告知或 `references/test-accounts.md` 中登记的测试账号——你只需确保有客户端专用密码即可。
+Agent 通过 CLI 参数 `--username` / `--password` 将凭证传给脚本。凭证来源于用户告知或 `references/test-accounts.md` 中登记的预配置账号——你只需确保有客户端专用密码即可。
 
 ### 前置条件
 
@@ -33,9 +33,9 @@ Agent 通过 CLI 参数 `--username` / `--password` 将凭证传给脚本。凭�
 
 - **收件**：列出/搜索邮件、读取全文、下载附件、标记已读、移动/删除
 - **发件**：纯文本/HTML/附件/内联图片/抄送密送/回复/线程合并
-- **修改邮件日期**：篡改已有邮件的 Date 头（用于测试场景）
+- **修改邮件日期**：修改已有邮件的 Date 头（用于归档、历史邮件整理等场景）
 - **中文搜索**：自动绕过腾讯企业邮 IMAP SEARCH 的已知 bug，走客户端兜底过滤
-- **模板拼装**：用预置模板 + 组件快速构造复杂 HTML 邮件（用于 E2E 评测）
+- **模板拼装**：用预置模板 + 组件快速构造复杂 HTML 邮件
 
 ## 目录结构
 
@@ -48,10 +48,10 @@ exmail-io/
 │   ├── exmail.py             # 核心脚本（CLI + Python 库，~1600 行）
 │   └── render_email.py       # 邮件正文模板拼装工具
 │
-├── assets/                   # 测试素材库
+├── assets/                   # 邮件素材库（组件/模板/附件/图片）
 │   ├── index.md              # 素材导航（模板/组件/附件/图片清单）
 │   ├── subjects.yaml         # 主题文案池
-│   ├── attachments/          # 通用测试附件
+│   ├── attachments/          # 通用附件素材
 │   ├── inline_images/        # 内联图片素材
 │   ├── components/           # HTML 片段（审批卡/告警/通知/签名等）
 │   └── templates/            # 完整邮件骨架模板
@@ -61,7 +61,7 @@ exmail-io/
     ├── get-client-password.md # 客户端专用密码获取步骤
     ├── imap-search.md        # IMAP 搜索语法 & 中文兜底机制
     ├── send-from-json.md     # 复杂邮件 JSON 描述格式
-    ├── test-accounts.md      # 内置联调测试账号
+    ├── test-accounts.md      # 预配置的账号凭证
     └── troubleshooting.md    # 故障排查
 ```
 
