@@ -1,6 +1,6 @@
 ---
 name: exmail-io
-description: 通过 IMAP/SMTP 公有协议在腾讯企业邮箱（企业微信邮箱 / exmail.qq.com）收发邮件的技能，预置 imap.exmail.qq.com:993 与 smtp.exmail.qq.com:465 配置。支持收件箱列表/搜索/正文读取/附件下载/标记已读/修改邮件日期，以及纯文本/HTML/附件/抄送/密送/内联图片（cid）/JSON 描述完整邮件/线程合并（In-Reply-To/References）/自定义头部 等发件能力。内置邮件素材库（附件/内联图/HTML 组件/邮件模板）与拼装工具，可快速构造各类邮件。当用户需要"收企业邮箱邮件 / 发企业邮箱邮件 / 读企业微信邮箱 / 查企微邮件 / receive exmail / send exmail / 检查未读邮件 / 下载邮件附件 / 回复企业邮件 / 内联图片邮件 / 富文本邮件 / 构造邮件 / 修改邮件日期 / 篡改邮件时间"等时使用，即使用户没有显式说出 IMAP / SMTP 也应使用本技能。
+description: 通过 IMAP/SMTP 公有协议在腾讯企业邮箱（企业微信邮箱 / exmail.qq.com）收发与管理邮件的技能，预置 imap.exmail.qq.com:993 与 smtp.exmail.qq.com:465。收件：列表/搜索/读正文/下附件/标记已读/移动删除；发件：纯文本/HTML/附件/抄送密送/内联图片(cid)/JSON 描述整封邮件/线程合并(In-Reply-To/References)/自定义头部；并可修改自有邮箱中邮件的日期（归档整理用）。内置邮件素材库（内联图/HTML 组件/邮件模板）与拼装工具。当用户需要「收/发企业邮箱邮件、读企业微信邮箱、查企微邮件、receive/send exmail、检查未读、下载附件、回复企业邮件、内联图片/富文本邮件、构造邮件、修改邮件日期」等时使用，即使用户未显式说出 IMAP / SMTP。
 ---
 
 # Exmail I/O Skill
@@ -15,7 +15,7 @@ description: 通过 IMAP/SMTP 公有协议在腾讯企业邮箱（企业微信�
 | **SMTP 发件** | 连接 `smtp.exmail.qq.com:465`，发送文本/HTML/带附件邮件 |
 | **修改邮件日期** | 拉取邮件 → **全局替换所有 RFC 2822 日期串**（Date / Received 多行 / X-Received / Message-ID）→ IMAP APPEND 并同步 INTERNALDATE → 删除原件；支持指定时区 |
 | 邮箱地址支持 | `@<企业域名>` 自定义域 与 `@exmail.qq.com` 通用域 |
-| 凭证管理 | 优先环境变量，其次 JSON 配置文件，绝不硬编码 |
+| 凭证管理 | 仅通过 CLI 参数 `--username` / `--password` 传入，绝不硬编码；脚本不读环境变量或配置文件 |
 | 收件搜索 | 未读、按日期、按发件人、按主题、按正文关键词；中文关键词自动客户端兜底（绕过腾讯企业邮 SEARCH bug） |
 | 多文件夹 | 支持 INBOX / Sent Messages / Drafts / Junk / 自定义；提供 `folders` 子命令查看（含中文文件夹名 IMAP UTF-7 解码） |
 | 附件 | 收件时按文件名提取并保存；发件时支持任意文件类型，含中文文件名 |
@@ -28,7 +28,10 @@ IMAP `imap.exmail.qq.com:993`（SSL）/ SMTP `smtp.exmail.qq.com:465`（SSL）�
 
 ## 工作流程（SOP）
 
-每次任务按以下顺序推进。**遇到信息缺失时，先尝试从环境变量与配置文件读取，不要一上来就追问用户。**
+每次任务按以下顺序推进。**凭证仅通过 CLI 参数传入**：Agent 从 `references/test-accounts.md` 或用户提供的信息中取得邮箱与客户端专用密码后传给脚本；缺失时先查这两处，不要一上来就追问用户。
+
+> ℹ️ 所有子命令的示例为求简洁均省略了全局的 `--username <邮箱> --password <客户端专用密码>`，实际执行时必须补上（它们是必填全局参数，位于子命令之前）。完整形式例如：
+> `python scripts/exmail.py --username me@company.com --password <客户端专用密码> inbox --limit 10`
 
 ### 步骤 1：获取凭证
 
@@ -265,7 +268,8 @@ cli.send(to=["a@x.com"], subject="主题", body="正文", from_name="我")
 
 1. **绝不在代码、日志、回复中明文打印客户端专用密码**
 2. 邮件正文与附件可能含敏感信息，**默认不要回显完整正文给用户之外的第三方**
-4. 一次性发送多收件人且 > 50 人时启用逐个发送间隔（如 `--send-interval 2`，每封间隔 2 秒），降低被反垃圾系统打分的风险。该参数仅在同一条 send 命令含多个 `--to` 时生效，会拆成多次逐个发送。
+3. 一次性发送多收件人且 > 50 人时启用逐个发送间隔（如 `--send-interval 2`，每封间隔 2 秒），降低被反垃圾系统打分的风险。该参数仅在同一条 send 命令含多个 `--to` 时生效，会拆成多次逐个发送。
+4. **合法使用边界**：发件人地址恒等于认证账号（`From` 强制为 `--username`，`--from-name` 只改显示名、无法伪造他人地址）；`modify-date` 仅能改**你自己有权访问的邮箱**内的邮件，用途限于归档 / 历史邮件整理，默认加 `--keep-original`。**禁止**冒充他人、伪造投递时间用于欺骗或欺诈、以及未经授权改动他人邮件。
 
 ## 运行时依赖
 
@@ -277,12 +281,12 @@ cli.send(to=["a@x.com"], subject="主题", body="正文", from_name="我")
 exmail-io/
 ├── SKILL.md                              # 本文件
 ├── scripts/
-│   ├── exmail.py                         # 核心 CLI + 库（IMAP+SMTP 一体，~1500 行，勿整体读取）
+│   ├── exmail.py                         # 核心 CLI + 库（IMAP+SMTP 一体，~1800 行，勿整体读取）
 │   └── render_email.py                   # 邮件正文拼装工具（模板+组件→HTML/JSON）
 ├── assets/
 │   ├── index.md                          # ⭐ 邮件素材库导航（必读）
 │   ├── subjects.yaml                     # 主题文案池
-│   ├── attachments/                      # 通用附件（readable / locked / confidential）
+│   ├── attachments/                      # 附件目录（⚠️ 公开版未随仓库附带，需自备；见 index.md）
 │   ├── inline_images/                    # 通用内联 PNG（架构图/监控/截图/海报等）
 │   ├── components/                       # HTML 片段（审批卡/告警卡/通知/会议/签名/保密/线程引用…）
 │   └── templates/                        # 完整邮件骨架（boss/customer/peer/cc/notice/approval/alert/线程追问）
@@ -291,13 +295,12 @@ exmail-io/
     ├── get-client-password.md            # 客户端专用密码获取步骤
     ├── imap-search.md                    # IMAP SEARCH 语法速查
     ├── send-from-json.md                 # 复杂邮件 JSON 描述 schema
-    ├── test-accounts.md                  # 预配置的账号凭证
+    ├── test-accounts.md                  # 预配置账号占位表（自行填入）
     └── troubleshooting.md                # 故障排查
 ```
 
-> 📦 **构造邮件时**：先看 `assets/index.md`，里面已经预置了
-> 附件（含不可读 / 保密变体）、内联图、审批卡片 / 通知标签 / 保密 banner / 代码
-> 块 / 表格等 HTML 组件，**不要重新造轮子**，直接复用并替换 `{{占位符}}` 即可。
+> 📦 **构造邮件时**：先看 `assets/index.md`。其中的**内联图、HTML 组件（审批卡 / 通知标签 / 保密 banner / 代码块 / 表格…）、邮件模板已随仓库附带**，直接复用并替换 `{{占位符}}` 即可，不要重新造轮子。
+> ⚠️ **附件例外**：`assets/attachments/` 中的文件**公开版未随仓库附带**，index.md 的附件清单是「按需自备」的推荐清单——需要带附件时用你自己的文件，或按清单准备后放入该目录。
 
 ## 与通用 email-sender 的协作
 

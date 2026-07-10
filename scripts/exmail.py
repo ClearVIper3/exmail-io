@@ -130,6 +130,15 @@ def _is_ascii(s: str) -> bool:
         return False
 
 
+def _escape_imap_astring(value: str) -> str:
+    """转义 IMAP quoted-string 中的反斜杠与双引号（RFC 3501 §9 quoted）。
+
+    用于把用户输入安全地嵌进 `FROM "..."` 等 SEARCH 条件里。裸拼接时，
+    形如 `a"b` 的地址会破坏 IMAP 语法（`FROM "a"b"`），导致 SEARCH 报错。
+    """
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
 def _quote_folder(name: str) -> str:
     """IMAP 文件夹名包含空格/特殊字符时必须用双引号包裹。
 
@@ -339,7 +348,7 @@ class ExmailClient:
                 # （腾讯企业邮 IMAP 不支持非 ASCII SEARCH，会忽略条件返回 ALL）
                 if from_addr:
                     if _is_ascii(from_addr):
-                        criteria.append(f'FROM "{from_addr}"')
+                        criteria.append(f'FROM "{_escape_imap_astring(from_addr)}"')
                     else:
                         client_filter_from = from_addr
                         scan_factor = max(scan_factor, 10)
@@ -782,20 +791,21 @@ class ExmailClient:
             html = True
 
         # 构造 MIME 结构（决策树，避免冗余嵌套）：
-        #   纯文本 → text/plain（顶层即一个简单 part；外层若仅多个 to 仍然能工作）
+        #   纯文本无附件无内联图 → text/plain（顶层即单个 part，不套 multipart）
         #   纯 HTML 无附件无内联图 → alternative
         #   有附件无内联图 → mixed → alternative
         #   有内联图无附件 → related → alternative
         #   有内联图 + 附件 → mixed → (related → alternative) + 附件
-        if has_attach and has_inline:
-            top = MIMEMultipart("mixed")
+        plain_only = not html and not has_attach and not has_inline
+        body_str = body or ""
+        if plain_only:
+            # 纯文本：顶层直接是 text/plain，避免多余的 multipart/alternative 单壳
+            top: email.message.Message = MIMEText(body_str, "plain", "utf-8")
         elif has_attach:
             top = MIMEMultipart("mixed")
         elif has_inline:
             top = MIMEMultipart("related")
-        elif html:
-            top = MIMEMultipart("alternative")
-        else:
+        else:  # html，无附件无内联图
             top = MIMEMultipart("alternative")
 
         display_name = from_name or self.from_name
@@ -830,7 +840,6 @@ class ExmailClient:
                     top[k] = Header(str(v), "utf-8").encode()
 
         # 构造正文 part（纯文本就是单个 MIMEText；HTML 则准备一对 plain+html）
-        body_str = body or ""
         if html:
             html_part = MIMEText(body_str, "html", "utf-8")
             plain_str = text_alt if text_alt is not None else _html_to_text(body_str)
@@ -847,10 +856,13 @@ class ExmailClient:
         else:
             html_part = None
             plain_part = None
-            body_container = MIMEText(body_str, "plain", "utf-8")
+            # 纯文本无附件无内联图时 top 已是 MIMEText 正文本身，无需再造 container
+            body_container = None if plain_only else MIMEText(body_str, "plain", "utf-8")
 
         # 把正文挂到合适的层
-        if has_inline:
+        if plain_only:
+            pass  # 正文即 top，无需附加
+        elif has_inline:
             related = MIMEMultipart("related") if has_attach else top
             if html and body_container is None:
                 # 不应该走到这里（has_inline 时顶层不是 alternative），但兜底
@@ -1481,11 +1493,26 @@ def _resolve_send_spec(args: argparse.Namespace) -> Dict[str, Any]:
     elif args.body_file:
         spec["body"] = Path(args.body_file).read_text(encoding="utf-8")
     if args.attach:
-        # CLI --attach 追加到 JSON 列表后（而非覆盖），更符合直觉
-        spec["attachments"] = list(spec["attachments"]) + list(args.attach)
+        # CLI --attach 追加到 JSON 列表后（而非覆盖），更符合直觉。
+        # CLI 路径按当前工作目录解析为绝对路径，与 JSON 分支（相对 JSON 文件目录）
+        # 各自采用直觉一致的基准，合并后列表统一为绝对路径。
+        spec["attachments"] = list(spec["attachments"]) + [
+            str(Path(p).resolve()) for p in args.attach
+        ]
     cli_inline = getattr(args, "inline_image", None) or []
     if cli_inline:
-        spec["inline_images"] = list(spec["inline_images"]) + list(cli_inline)
+        # 归一化为 (绝对路径, cid) 元组，与 JSON 分支输出格式保持一致；
+        # 同时在此尽早校验 path:cid 格式（rsplit 兼容 Windows 盘符 C:\x.png:cid）。
+        cli_norm: List[Any] = []
+        for item in cli_inline:
+            if ":" not in item:
+                raise SystemExit(
+                    f"--inline-image 必须是 PATH:CID 形式，收到：{item!r}")
+            p, cid = item.rsplit(":", 1)
+            if not cid.strip():
+                raise SystemExit(f"--inline-image 的 CID 不能为空：{item!r}")
+            cli_norm.append((str(Path(p).resolve()), cid.strip()))
+        spec["inline_images"] = list(spec["inline_images"]) + cli_norm
     # 线程合并相关头：CLI 显式提供则覆盖 JSON
     if getattr(args, "in_reply_to", None):
         spec["in_reply_to"] = args.in_reply_to
@@ -1595,13 +1622,23 @@ def _run_with_friendly_errors(func):
         except smtplib.SMTPException as e:
             print(f"SMTP 发送失败：{e}", file=sys.stderr)
             return 3
+        except FileNotFoundError as e:
+            # 必须排在 OSError 之前：FileNotFoundError 是 OSError 子类，
+            # 否则会被下面的网络分支抢先捕获、误报为“网络连接失败”。
+            print(f"文件不存在：{e}", file=sys.stderr)
+            return 5
         except (ConnectionError, OSError) as e:
             print(f"网络连接失败：{e}\n请检查网络/代理设置，或服务器是否可达。",
                   file=sys.stderr)
             return 4
-        except FileNotFoundError as e:
-            print(f"文件不存在：{e}", file=sys.stderr)
-            return 5
+        except (RuntimeError, ValueError) as e:
+            # 客户端方法在参数/IMAP 响应异常时会抛这两类（如选文件夹失败、
+            # UID 不存在、附件路径缺失、日期格式错误等）。给出简洁错误而非 traceback。
+            print(f"操作失败：{e}", file=sys.stderr)
+            return 6
+        except Exception as e:  # 兜底：任何未预期异常也返回非零退出码
+            print(f"未预期的错误：{type(e).__name__}: {e}", file=sys.stderr)
+            return 1
     return wrapper
 
 

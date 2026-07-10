@@ -38,7 +38,7 @@
 本 skill 已自动应对：当 `--from` / `--subject` 含中文时，切换为「客户端兜底过滤」
 （粗筛后本地匹配，扫描窗口 = `limit × 10`）。
 
-详见 [imap-search.md](imap-search.md#中文非-ascii-关键词)。
+详见 [imap-search.md](imap-search.md#中文关键词搜索客户端兜底机制)。
 
 ### 主题/发件人显示乱码
 

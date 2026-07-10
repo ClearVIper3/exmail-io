@@ -17,7 +17,7 @@
 
 腾讯企业邮箱**不支持 OAuth2**，第三方客户端必须用「客户端专用密码」登录（不是你平时的网页登录密码）。
 
-获取方式：登录 https://exmail.qq.com → 设置 → 微信绑定 → 安全登录 → 生成客户端专用密码（16 位）
+获取方式：登录 https://exmail.qq.com → 设置 → 微信绑定（或「账户安全」）→ 安全登录 → 生成客户端专用密码（16 位）
 
 详见 [references/get-client-password.md](references/get-client-password.md)
 
@@ -45,13 +45,13 @@ exmail-io/
 ├── README.md                 # 你正在看的文件
 │
 ├── scripts/
-│   ├── exmail.py             # 核心脚本（CLI + Python 库，~1600 行）
+│   ├── exmail.py             # 核心脚本（CLI + Python 库，~1800 行）
 │   └── render_email.py       # 邮件正文模板拼装工具
 │
-├── assets/                   # 邮件素材库（组件/模板/附件/图片）
-│   ├── index.md              # 素材导航（模板/组件/附件/图片清单）
+├── assets/                   # 邮件素材库（组件/模板/图片；附件需自备）
+│   ├── index.md              # 素材导航（模板/组件/内联图清单 + 附件推荐清单）
 │   ├── subjects.yaml         # 主题文案池
-│   ├── attachments/          # 通用附件素材
+│   ├── attachments/          # 附件目录（⚠️ 公开版未附带文件，需自备）
 │   ├── inline_images/        # 内联图片素材
 │   ├── components/           # HTML 片段（审批卡/告警/通知/签名等）
 │   └── templates/            # 完整邮件骨架模板
@@ -61,7 +61,7 @@ exmail-io/
     ├── get-client-password.md # 客户端专用密码获取步骤
     ├── imap-search.md        # IMAP 搜索语法 & 中文兜底机制
     ├── send-from-json.md     # 复杂邮件 JSON 描述格式
-    ├── test-accounts.md      # 预配置的账号凭证
+    ├── test-accounts.md      # 预配置账号占位表（自行填入）
     └── troubleshooting.md    # 故障排查
 ```
 

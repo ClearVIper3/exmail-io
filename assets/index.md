@@ -1,8 +1,10 @@
 # Assets 邮件素材库
 
-本目录提供构造邮件所需的全部预制素材（附件 / 内联图 / HTML 组件 / 邮件模板）。
+本目录提供构造邮件所需的预制素材（内联图 / HTML 组件 / 邮件模板已随仓库附带；附件目录见下方说明）。
 SKILL 在收到「构造若干邮件 + 含附件 / 内联图 / 审批卡片 / 通知标签…」类需求时，
 **优先复用本目录文件，不要重复造轮子**。
+
+> ⚠️ **公开版注意**：`attachments/` 下的附件文件**未随仓库附带**（脱敏时移除），其清单为「按需自备」的推荐参考；`inline_images/`、`components/`、`templates/` 均已附带、可直接用。
 
 ## 目录
 
@@ -63,7 +65,12 @@ assets/
 
 ## 附件清单（attachments/）
 
-### readable/ — 可读附件
+> ⚠️ **公开版说明**：`assets/attachments/` 目录下的文件**未随本仓库附带**（脱敏时移除）。
+> 下表是「按需自备」的**推荐附件清单**——需要带附件发信时，请用你自己的文件，或按此清单
+> 在 `assets/attachments/{readable,locked,confidential}/` 下放入同名文件后再引用。内联图
+> （`inline_images/`）、HTML 组件（`components/`）、邮件模板（`templates/`）则已随仓库附带，可直接用。
+
+### readable/ — 可读附件（需自备）
 
 | 文件 | 用途 / 出现场景 |
 |------|------|
@@ -190,6 +197,8 @@ card = (card
 | `thread_quote.html` | QUOTE_SENDER / QUOTE_DATE / QUOTE_CONTENT |
 | `subscription_summary.html` | TITLE / SUMMARY / LINKS |
 
+> 📌 部分占位符期望**原始 HTML 片段**而非纯文本：`data_table.html` 的 `HEADERS`（一串 `<th>…</th>`）与 `ROWS`（一串 `<tr><td>…</td></tr>`）、`auto_daily_report.html` 的 `ROWS`、`code_block.html` 的 `CODE`（注意 `<>&` 转义）等。以各组件文件内的注释为准。
+
 ### 颜色色值速查
 
 | 语义 | 色值 |
@@ -237,6 +246,12 @@ python scripts/exmail.py send \
 - `subscription` — 订阅推送
 - `fyi` — FYI 通用
 - `old_misc` — "7 天外"历史归档邮件
+- `alert` — P0/P1 故障告警
+- `permission` — 权限/密码/证书到期
+- `cc_project` — CC 类项目同步主题
+- `meeting_minutes` — 会议纪要
+
+> 以 `subjects.yaml` 实际内容为准（行首 `分类名:` 即一个类别）。
 
 ## SMTP 协议层无法表达的语义（必须妥协）
 

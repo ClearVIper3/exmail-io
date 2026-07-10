@@ -116,7 +116,15 @@ def compose_json(
     references: Optional[str] = None,
     headers: Optional[Dict[str, str]] = None,
 ) -> dict:
-    """生成 exmail.py send --from-json 所需的 JSON 字典。"""
+    """生成 exmail.py send --from-json 所需的 JSON 字典。
+
+    参数说明（仅列出易混淆项）：
+        inline_images: 字符串列表，每项为 "path:cid" 形式
+            （如 "assets/inline_images/architecture.png:arch1"）。这里保持字符串
+            原样写入 JSON；exmail.py send --from-json 读取时会把它们归一化为
+            (绝对路径, cid) 元组，路径相对该 JSON 文件所在目录解析。
+        attachments: 路径字符串列表，同样相对生成的 JSON 文件目录解析。
+    """
     data: dict = {
         "to": to,
         "subject": subject,
@@ -149,13 +157,17 @@ def compose_json(
 
 
 def _parse_set(items: List[str]) -> Dict[str, str]:
-    """解析 --set KEY=VALUE 列表为字典。"""
+    """解析 --set KEY=VALUE 列表为字典。
+
+    键与值均去除首尾空白，与 _parse_embed / _parse_headers 的处理保持一致，
+    避免命令行里 `--set 'K= v'` 意外带入前导空格到 HTML 占位符。
+    """
     result: Dict[str, str] = {}
     for item in items:
         if "=" not in item:
             raise SystemExit(f"--set 格式错误（需 KEY=VALUE）：{item!r}")
         k, v = item.split("=", 1)
-        result[k.strip()] = v
+        result[k.strip()] = v.strip()
     return result
 
 

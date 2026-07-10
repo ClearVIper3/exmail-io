@@ -39,9 +39,10 @@ python scripts/exmail.py send --from-json ./mail.json
   ],
 
   // 内联图片：HTML 中通过 <img src="cid:CID"> 引用
-  // 两种语法等价：
+  // 三种写法等价（对象形式的键支持别名：path≈file，cid≈content_id）：
   "inline_images": [
     {"path": "./logo.png", "cid": "logo"},
+    {"file": "./logo2.png", "content_id": "logo2"},
     "./banner.jpg:banner_cid"
   ],
 

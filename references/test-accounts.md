@@ -1,31 +1,29 @@
-# 预配置账号凭证
+# 预配置账号
 
-本文件登记本 skill 使用的腾讯企业邮箱账号凭证。
+本文件登记常用的腾讯企业邮箱账号，便于多账号收发场景直接选用。
 
-> ⚠️ 仅供演示 / 开发使用。正式场景通过 `--username` / `--password` 传入用户自己的凭证，**不要**把这些密码写到生产系统里。
-> 🔒 公开版已移除所有明文客户端专用密码与企业内部账号；下文仅保留结构示意，密码一律以占位符表示。
+> 账号与密码均通过 `--username` / `--password` 传入 `scripts/exmail.py`，不会被写入代码或日志。
 
-## 账号列表（结构示意，密码已脱敏）
+## 账号列表（示例）
 
-| 标识 | 邮箱 | 客户端专用密码 | 说明 |
-|------|------|----------------|------|
-| 主账号 | `main@example-test.site` | `<CLIENT_APP_PASSWORD>` | 默认账号；多数收件 / 状态管理操作的主体 |
-| 开发组成员 A | `dev-a@example-test.site` | `<CLIENT_APP_PASSWORD>` | 开发组成员，用于多方收发 |
-| 开发组成员 B | `dev-b@example-test.site` | `<CLIENT_APP_PASSWORD>` | 开发组成员，用于多方收发 |
-| 测试组成员 A | `qa-a@example-test.site` | `<CLIENT_APP_PASSWORD>` | 测试组成员，用于多方收发 |
-| 产品部成员 A | `pm-a@example-test.site` | `<CLIENT_APP_PASSWORD>` | 产品部成员，用于跨部门协作 |
-| 财务部成员 A | `fin-a@example-test.site` | `<CLIENT_APP_PASSWORD>` | 财务部成员，用于跨部门协作 |
-| 管理层成员 A | `mgr-a@example-test.site` | `<CLIENT_APP_PASSWORD>` | 管理层成员，用于审批 / 汇报 |
-| 人事部成员 A | `hr-a@example-test.site` | `<CLIENT_APP_PASSWORD>` | 人事部成员，用于通知 / 招聘 |
+| 标识 | 姓名（示例） | 邮箱 | 客户端专用密码 | 说明 |
+|------|------|------|----------------|------|
+| 主账号 | 张三 | `main@example-test.site` | `<你的客户端专用密码>` | 默认账号；多数收件 / 状态管理操作的主体 |
+| 开发组成员 A | 王五 | `dev-a@example-test.site` | `<你的客户端专用密码>` | 开发组成员，用于多方收发 |
+| 开发组成员 B | 李四 | `dev-b@example-test.site` | `<你的客户端专用密码>` | 开发组成员，用于多方收发 |
+| 测试组成员 A | 赵六 | `qa-a@example-test.site` | `<你的客户端专用密码>` | 测试组成员，用于多方收发 |
+| 测试组成员 B | 周杰 | `qa-b@example-test.site` | `<你的客户端专用密码>` | 测试组成员，用于多方收发 |
+| 产品部成员 A | 孙七 | `pm-a@example-test.site` | `<你的客户端专用密码>` | 产品部成员，用于跨部门协作 |
+| 产品部成员 B | 周杰 | `pm-b@example-test.site` | `<你的客户端专用密码>` | 产品部成员，用于跨部门协作 |
+| 财务部成员 A | 李四 | `fin-a@example-test.site` | `<你的客户端专用密码>` | 财务部成员，用于跨部门协作 |
+| 管理层成员 A | 钱经理 | `mgr-a@example-test.site` | `<你的客户端专用密码>` | 管理层成员，用于审批 / 汇报 |
+| 人事部成员 A | 吴助理 | `hr-a@example-test.site` | `<你的客户端专用密码>` | 人事部成员，用于通知 / 招聘 |
 
-> 实际使用请填入你自己的腾讯企业邮箱账号，按 `references/get-client-password.md` 生成客户端专用密码后，通过 `--username` / `--password` 传入。
+> 上表的 `example-test.site` 为示例域名、姓名亦为占位示例；实际使用时请替换为你的腾讯企业邮箱账号与真实姓名，按 `references/get-client-password.md` 生成客户端专用密码后填入。**下方「同名账号消歧」中的 李四 / 周杰 即对应此表中的重名行**。
 
-### 企业内部账号（已移除）
+### 服务器配置
 
-原 `yxznit.cn` 域的 40 余个企业内部账号（含真实姓名与职位）**已在公开版中移除**，以避免泄露真实人员信息与可用凭证。
-
-> 密码均为腾讯企业邮箱「客户端专用密码」（非网页登录密码），可直接用于 IMAP / SMTP 登录。
-> 服务器配置已固定为 `imap.exmail.qq.com:993` / `smtp.exmail.qq.com:465`，无需额外提供。
+> IMAP / SMTP 服务器已固定为 `imap.exmail.qq.com:993` / `smtp.exmail.qq.com:465`，使用「客户端专用密码」登录（非网页登录密码），无需额外提供。
 
 ### ⚠️ 同名账号消歧
 
@@ -47,12 +45,12 @@
 ```bash
 # 主账号查收件箱
 python scripts/exmail.py \
-  --username main@example-test.site --password <CLIENT_APP_PASSWORD> \
+  --username main@example-test.site --password <你的客户端专用密码> \
   inbox --limit 10
 
 # 成员 A 给主账号发邮件
 python scripts/exmail.py \
-  --username dev-a@example-test.site --password <CLIENT_APP_PASSWORD> \
+  --username dev-a@example-test.site --password <你的客户端专用密码> \
   send --to main@example-test.site --subject "同步" --body "hello"
 ```
 

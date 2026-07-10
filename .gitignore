@@ -8,9 +8,9 @@ __pycache__/
 exmail_config.json
 .exmail-*.json
 
-# 本地测试产物
-downloads/
-attachments/
+# 本地测试产物（用根锚定，避免 `attachments/` 误伤 assets/attachments/）
+/downloads/
+/attachments/
 *.log
 
 # OS / IDE
