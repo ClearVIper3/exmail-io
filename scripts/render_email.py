@@ -41,6 +41,7 @@ Python API：
 import argparse
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -98,6 +99,16 @@ def render_template(
     if replacements:
         for k, v in replacements.items():
             html = html.replace("{{" + k + "}}", v)
+
+    # 校验：任何残留的 {{占位符}} 都会原样出现在最终邮件里。与其静默发出带
+    # "{{FOO}}" 的邮件，不如直接报错，提示补齐 --set（不需要的填空串）。
+    # 检测覆盖所有 {{...}} 形态（含 {{ GREETING }} / {{DEADLINE-LINE}} 这类带
+    # 空格/连字符的写法）——它们同样无法被替换逻辑填充，必须报出来。
+    remaining = sorted(set(re.findall(r"\{\{[^{}]+\}\}", html)))
+    if remaining:
+        raise SystemExit(
+            f"模板 {template_name} 存在未替换占位符：{' '.join(remaining)}；"
+            f"请用 --set NAME=VALUE 补齐（不需要的填空串 --set NAME=）")
 
     return html
 
@@ -286,6 +297,27 @@ def main():
             print(f"✅ 已写入：{args.output}", file=sys.stderr)
 
     elif args.command == "compose":
+        # 校验内联图 cid 是否真被正文引用：未被引用的内联图会以孤立 MIME part 发送，
+        # 收件方看到的是空白/断链图片。用 rsplit 而非 split，兼容 Windows 绝对路径
+        # 里的盘符冒号（C:\x.png:cid）。
+        if args.inline_image:
+            for item in args.inline_image:
+                if ":" not in item:
+                    raise SystemExit(
+                        f"内联图格式错误（需 PATH:CID）：{item!r}")
+                cid = item.rsplit(":", 1)[1].strip()
+                if not cid:
+                    raise SystemExit(f"内联图 CID 不能为空：{item!r}")
+                # 必须带词边界匹配：纯子串判断会让 cid 前缀碰撞误判通过
+                # （如正文引用 cid:monitor_capacity 时，"cid:monitor" 是其子串，
+                # 但两者是不同的 Content-ID，发出的邮件会断链）
+                if not re.search(
+                        r"cid:" + re.escape(cid) + r"(?![A-Za-z0-9_.\-])", html):
+                    raise SystemExit(
+                        f"内联图 cid {cid!r} 未在正文 HTML 中被引用；"
+                        f"请在模板占位符里写 <img src=\"cid:{cid}\">，"
+                        f"或去掉该 --inline-image")
+
         headers = _parse_headers(args.header) if args.header else None
         data = compose_json(
             html_body=html,
