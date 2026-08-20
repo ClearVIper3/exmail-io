@@ -14,11 +14,11 @@ exmail.py — 腾讯企业邮箱（exmail.qq.com）IMAP+SMTP 一体客户端
     python exmail.py read     --uid UID [--folder INBOX] [--mark-seen]
                               [--save-attachments DIR] [--no-html]
                               [--body-lines N] [--output FILE]
-    python exmail.py flag     --uid UID [--seen|--unseen|--flagged|--unflagged]
+    python exmail.py flag     --uid UID [--seen|--unseen] [--flagged|--unflagged]
     python exmail.py move     --uid UID --to FOLDER
     python exmail.py delete   --uid UID
     python exmail.py send     --to A,B [--cc C] [--bcc D] --subject S
-                              (--body TEXT | --body-file FILE) [--html]
+                              [--body TEXT | --body-file FILE] [--html]  # 同传时 --body 优先
                               [--attach FILE]... [--inline-image PATH:CID]...
                               [--from-name NAME]
                               [--in-reply-to MSGID] [--references "ID1 ID2..."]
@@ -96,6 +96,27 @@ def _split_addresses(value: Union[str, Sequence[str], None]) -> List[str]:
     return [p.strip() for p in parts if p and p.strip()]
 
 
+def _format_addr_header(addrs: Sequence[str]) -> str:
+    """把地址列表格式化为 RFC 5322 头部值（To/Cc 用）。
+
+    直接 `", ".join(...)` 塞原始字符串时，一旦含中文显示名（如「张三 <a@b.com>」），
+    Compat32 会把整个头部值（显示名+尖括号+地址）编成单个 RFC 2047 encoded-word，
+    头部失去 mailbox 结构、严格解析的客户端提取不到地址。这里逐地址 parseaddr
+    拆分，有显示名时走与 From 头相同的 formataddr((Header, addr)) 编码路径。
+    """
+    parts: List[str] = []
+    for item in addrs:
+        name, addr = parseaddr(item)
+        if name and addr:
+            parts.append(formataddr((str(Header(name, "utf-8")), addr)))
+        elif addr:
+            parts.append(addr)
+        else:
+            # 解析不出地址时保留原样，交给后续 SMTP 层报错
+            parts.append(item)
+    return ", ".join(parts)
+
+
 def _resolve_credentials(
     cli_username: Optional[str],
     cli_password: Optional[str],
@@ -117,6 +138,10 @@ def _format_imap_date(s: str) -> str:
     if not m:
         return s  # 假定用户已传 IMAP 日期格式
     y, mo, d = m.groups()
+    if not (1 <= int(mo) <= 12) or not (1 <= int(d) <= 31):
+        # 不做校验的话：月份 00 会被 months[-1] 静默错译成 12 月（搜索结果错了
+        # 但无任何报错）；月份 13 抛 IndexError，用户完全看不出是日期输错了。
+        raise ValueError(f"无效日期：{s}（月份/日期超出范围，期望 YYYY-MM-DD）")
     months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
              "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     return f"{int(d):02d}-{months[int(mo) - 1]}-{y}"
@@ -139,19 +164,62 @@ def _escape_imap_astring(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
+def _imap_utf7_encode(name: str) -> str:
+    """编码 Python str 为 IMAP modified UTF-7（_imap_utf7_decode 的逆运算）。
+
+    规则（RFC 3501 §5.1.3）：
+      * 可打印 ASCII（0x20-0x7E）原样保留，唯 `&` 要写成 `&-`
+      * 连续非 ASCII 段按 UTF-16BE 编码 → base64（`/` 换成 `,`，去掉 `=` padding）
+        包成 `&XXX-`
+    imaplib._command 对所有 str 参数执行 bytes(arg, 'ascii')，中文文件夹名不先
+    编码成这种纯 ASCII 形式必然抛 UnicodeEncodeError。
+    """
+    if not name:
+        return ""
+    import base64
+    out: List[str] = []
+    buf: List[str] = []
+
+    def flush() -> None:
+        if not buf:
+            return
+        raw = "".join(buf).encode("utf-16-be")
+        b64 = base64.b64encode(raw).decode("ascii").rstrip("=").replace("/", ",")
+        out.append("&" + b64 + "-")
+        buf.clear()
+
+    for ch in name:
+        code = ord(ch)
+        if 0x20 <= code <= 0x7E:
+            flush()
+            out.append("&-" if ch == "&" else ch)
+        else:
+            buf.append(ch)
+    flush()
+    return "".join(out)
+
+
 def _quote_folder(name: str) -> str:
     """IMAP 文件夹名包含空格/特殊字符时必须用双引号包裹。
 
     imaplib.IMAP4.select() 不会自动加引号，传 `Sent Messages` 会被解析为
     `EXAMINE Sent Messages` → 服务器报 `EXAMINE parameters!`。
+
+    非 ASCII 名（如「其他文件夹」）先编码为 IMAP modified UTF-7——imaplib 按
+    ASCII 编码所有 str 参数，不编码必抛 UnicodeEncodeError。这样 folders 输出
+    的 name（可读中文）与 raw_name（原始 UTF-7）两种形式都可以直接传给
+    --folder。
     """
     if not name:
         return '""'
     # 已经被引号包裹则原样返回
     if len(name) >= 2 and name[0] == '"' and name[-1] == '"':
         return name
+    # 非 ASCII → modified UTF-7 编码（编码结果是纯 ASCII，继续走下方常规逻辑）
+    if not _is_ascii(name):
+        name = _imap_utf7_encode(name)
     # 含 ASCII 安全的字母数字、下划线、INBOX 这类裸名直接返回
-    if re.match(r"^[A-Za-z0-9_./\-]+$", name):
+    if re.match(r"^[A-Za-z0-9_./\-&,-]+$", name):
         return name
     # 其余加引号，转义内部双引号和反斜杠
     escaped = name.replace("\\", "\\\\").replace('"', '\\"')
@@ -551,6 +619,7 @@ class ExmailClient:
                 "from": _decode_mime_header(msg.get("From", "")),
                 "to": _decode_mime_header(msg.get("To", "")),
                 "cc": _decode_mime_header(msg.get("Cc", "")),
+                "reply_to": _decode_mime_header(msg.get("Reply-To", "")),
                 "subject": _decode_mime_header(msg.get("Subject", "")),
                 "date": msg.get("Date", ""),
                 "message_id": msg.get("Message-ID", ""),
@@ -640,6 +709,41 @@ class ExmailClient:
             except Exception:
                 pass
 
+    def get_flags(self, uid: int, folder: str = "INBOX") -> List[str]:
+        """取回邮件当前的 IMAP 标志列表（如 ["\\Seen", "\\Flagged"]）。
+
+        modify-date 重建邮件前用它保留原状态（未读/星标/已回复等），避免
+        APPEND 后标志被重置。
+        """
+        m = self._imap_connect()
+        try:
+            typ, _ = m.select(_quote_folder(folder))
+            if typ != "OK":
+                raise RuntimeError(f"选择文件夹 {folder} 失败")
+            typ, data = m.uid("FETCH", str(uid), "(FLAGS)")
+            if typ != "OK" or not data or data[0] is None:
+                raise RuntimeError(f"未找到 UID={uid} 的邮件")
+            item = data[0]
+            if isinstance(item, tuple):
+                text = " ".join(
+                    part.decode("utf-8", "replace") if isinstance(part, bytes)
+                    else str(part) for part in item if part
+                )
+            elif isinstance(item, bytes):
+                text = item.decode("utf-8", "replace")
+            else:
+                text = str(item)
+            # 典型响应: '123 (UID 2825 FLAGS (\Seen \Flagged))'
+            fm = re.search(r"FLAGS\s*\(([^)]*)\)", text)
+            if not fm:
+                return []
+            return [f for f in fm.group(1).split() if f]
+        finally:
+            try:
+                m.logout()
+            except Exception:
+                pass
+
     def append(
         self,
         folder: str,
@@ -664,10 +768,17 @@ class ExmailClient:
         if flags:
             flag_str = "(" + " ".join(flags) + ")"
 
-        # imaplib.append 的 date_time 参数需要 imaplib.Time2Internaldate 格式
+        # imaplib.append 的 date_time 参数需要 imaplib.Time2Internaldate 格式。
+        # 直接传 aware datetime，不要传 date.timetuple()：
+        # struct_time 在 Windows 上 tm_gmtoff 为 None，Time2Internaldate 内部会执行
+        # timedelta(seconds=None) 抛 TypeError（Windows + Python 3.13 下 modify-date
+        # 因此必然崩溃）。aware datetime 走 Time2Internaldate 的 strftime('%z') 分支，
+        # 跨平台可靠；naive datetime 先补上本地时区，避免 "date_time must be aware"。
         date_time = None
         if date:
-            date_time = imaplib.Time2Internaldate(date.timetuple())
+            if date.tzinfo is None:
+                date = date.astimezone()
+            date_time = imaplib.Time2Internaldate(date)
 
         m = self._imap_connect()
         try:
@@ -742,8 +853,8 @@ class ExmailClient:
                 与 in_reply_to 配合使用即可让客户端把多封邮件归到同一线程。
             extra_headers: 任意附加邮件头，dict 形式 {name: value}。
                 例：{"X-Priority": "1", "X-Custom-Trace": "abc"}。注意以下头由
-                本方法自身生成、传入将被忽略：From / To / Cc / Subject / Date /
-                Message-ID / In-Reply-To / References。
+                本方法自身生成、传入将被忽略：From / To / Cc / Bcc / Subject /
+                Date / Message-ID / In-Reply-To / References。
         """
         to_list = _split_addresses(to)
         cc_list = _split_addresses(cc)
@@ -811,9 +922,9 @@ class ExmailClient:
         display_name = from_name or self.from_name
         top["From"] = formataddr((str(Header(display_name, "utf-8")), self.username)) \
             if display_name else self.username
-        top["To"] = ", ".join(to_list)
+        top["To"] = _format_addr_header(to_list)
         if cc_list:
-            top["Cc"] = ", ".join(cc_list)
+            top["Cc"] = _format_addr_header(cc_list)
         top["Subject"] = Header(subject, "utf-8").encode()
         top["Date"] = formatdate(localtime=True)
         top["Message-ID"] = make_msgid(domain=self.username.split("@", 1)[-1] or "exmail.qq.com")
@@ -922,11 +1033,15 @@ class ExmailClient:
         include_quote: bool = False,
         folder: str = "INBOX",
     ) -> Dict[str, Any]:
-        """对一封邮件进行回复，自动维护 Re: 主题与 In-Reply-To/References。"""
+        """对一封邮件进行回复，自动维护 Re: 主题与 In-Reply-To/References。
+
+        回复目标遵循 RFC 5322 §3.6.2：原邮件设了 Reply-To 时优先发往 Reply-To
+        （工单/通知系统/邮件列表常见），否则发往 From。
+        """
         original = self.read(uid=uid, folder=folder, mark_seen=False)
-        from_addr = parseaddr(original["from"])[1]
+        from_addr = parseaddr(original.get("reply_to") or original["from"])[1]
         if not from_addr:
-            raise RuntimeError("原邮件 From 解析失败，无法回复")
+            raise RuntimeError("原邮件 Reply-To/From 解析失败，无法回复")
 
         subj = original.get("subject", "") or ""
         if not re.match(r"^\s*Re:", subj, re.IGNORECASE):
@@ -946,7 +1061,7 @@ class ExmailClient:
                 else:
                     body = body + "\n\n----- 原邮件 -----\n" + quoted
 
-        return self.send(
+        result = self.send(
             to=from_addr,
             subject=subj,
             body=body,
@@ -956,6 +1071,11 @@ class ExmailClient:
             in_reply_to=in_reply_to,
             references=new_refs,
         )
+        # 回显实际应用的线程头，便于调用方核实会话归属，而不必再读一遍 Sent 副本。
+        result["subject"] = subj
+        result["in_reply_to"] = in_reply_to
+        result["references"] = new_refs
+        return result
 
 
 # =====================================================================
@@ -1031,6 +1151,12 @@ def _walk_message(
         # 正文
         payload_bytes = part.get_payload(decode=True) or b""
         charset = part.get_content_charset() or "utf-8"
+        # GB 系归一化：中文邮件把 GBK 内容声明成 gb2312 极其普遍（Foxmail/老
+        # Outlook），而 GBK 扩展字不在 GB2312 字集内，按 gb2312 解码失败字节会
+        # 被 errors="replace" 吞成 U+FFFD 乱码。gb18030 是 GB 系超集，对
+        # GB2312/GBK 内容恒正确，统一改用它解码。
+        if charset.lower() in ("gb2312", "gbk", "gb18030", "gb-2312"):
+            charset = "gb18030"
         try:
             text = payload_bytes.decode(charset, errors="replace")
         except (LookupError, TypeError):
@@ -1088,7 +1214,14 @@ def _build_attachment(filepath: str) -> MIMEBase:
     if not p.exists() or not p.is_file():
         raise FileNotFoundError(f"附件不存在：{filepath}")
     data = p.read_bytes()
-    part = MIMEBase("application", "octet-stream")
+    # 依据文件扩展名猜测真实 MIME 类型（如 .pdf -> application/pdf），
+    # 猜不到才回退到 application/octet-stream。硬编码 octet-stream 会导致
+    # 收件方（尤其 webmail 预览 / 手机端）无法按类型正确处理附件。
+    mime_type, _ = mimetypes.guess_type(p.name)
+    if not mime_type:
+        mime_type = "application/octet-stream"
+    maintype, subtype = mime_type.split("/", 1)
+    part = MIMEBase(maintype, subtype)
     part.set_payload(data)
     encoders.encode_base64(part)
     # 中文文件名兼容性最好的方式：RFC 2231
@@ -1104,16 +1237,21 @@ def _build_attachment(filepath: str) -> MIMEBase:
 # RFC 2822 日期格式全局匹配正则（字节模式，覆盖 Date / Received(含多行折行) /
 # X-Received / Message-ID 等任意字段中出现的日期串）。
 #   - 星期前缀可选（RFC 2822 允许省略，如 "15 Jun 2026 ..."）
-#   - 秒、时区偏移、时区注释 (CST)/(PDT) 均可选
+#   - 年份兼容 obs-year 两位年（如 "15 Jun 99"，2000 年前老邮件常见）
+#   - 时区兼容数字偏移与 obs-zone 字母时区名（GMT/UT/EST/PDT 等，1-5 字母）；
+#     不覆盖的话 "10:30:00 GMT" 只会替换到秒，残留 GMT 形成非法头（改坏而非漏改）
+#   - re.IGNORECASE：月份/星期按 RFC 5234 大小写不敏感（如 "15 jun 2026"）
+#   - 秒、时区、时区注释 (CST)/(PDT) 均可选
 #   - 各组件间分隔符限定为空格/制表符（[ \t]+），避免 \s+ 误跨续行/换行
 _RFC2822_DATE_RE = re.compile(
     rb'(?:(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),[ \t]+)?'
     rb'\d{1,2}[ \t]+'
     rb'(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[ \t]+'
-    rb'\d{4}[ \t]+'
+    rb'\d{2}(?:\d{2})?[ \t]+'
     rb'\d{1,2}:\d{2}(?::\d{2})?'
-    rb'(?:[ \t]+[+-]\d{4})?'
-    rb'(?:[ \t]+\([A-Za-z]+\))?'
+    rb'(?:[ \t]+(?:[+-]\d{4}|[A-Z]{1,5}))?'
+    rb'(?:[ \t]+\([A-Za-z]+\))?',
+    re.IGNORECASE,
 )
 
 
@@ -1133,7 +1271,8 @@ def modify_eml_date(
         - `Received:` 头（常折行成多行，日期在以 TAB 开头的续行中；
           存在 `for <...>;` / `id ;` 等多种格式）
         - `X-Received:`（Gmail 转发常见）
-        - `Message-ID:`（部分邮件内嵌可读日期）
+        - `Message-ID:`（仅当其中内嵌 RFC 2822 格式的可读日期串时才会被替换；
+          `<20260615103000.12345@host>` 这类纯数字 Message-ID 不受影响）
 
     逐字段正则永远有盲区。本函数因此**对整封邮件原始字节做全局正则替换**，把所有
     符合 RFC 2822 格式的日期串一次性替换为新日期，一步到位、不留残留。
@@ -1190,10 +1329,16 @@ def _parse_date_string(date_str: str, tz_str: str = "+0800") -> datetime:
         date_str: 日期字符串
         tz_str: 时区偏移，如 "+0800", "-0500", "+0000"
     """
-    # 解析时区
+    # 解析时区：先校验格式，避免 "GMT"/"+8"/"0800"/"" 等畸形输入抛出
+    # int('MT')、IndexError 之类完全看不出是时区写错了的原生报错
+    if not re.fullmatch(r"[+-]\d{4}", tz_str or ""):
+        raise ValueError(f"时区格式不正确：{tz_str!r}，应为 +0800 / -0500 形式")
     tz_sign = 1 if tz_str[0] == '+' else -1
     tz_hours = int(tz_str[1:3])
     tz_minutes = int(tz_str[3:5])
+    if tz_hours > 23 or tz_minutes > 59:
+        raise ValueError(
+            f"时区偏移超出范围：{tz_str!r}（小时应 ≤23，分钟应 ≤59）")
     tz = timezone(timedelta(hours=tz_sign * tz_hours, minutes=tz_sign * tz_minutes))
 
     # 尝试不同格式
@@ -1272,8 +1417,10 @@ def _build_parser() -> argparse.ArgumentParser:
     g = s_fl.add_mutually_exclusive_group()
     g.add_argument("--seen", dest="seen", action="store_true")
     g.add_argument("--unseen", dest="unseen", action="store_true")
-    s_fl.add_argument("--flagged", action="store_true")
-    s_fl.add_argument("--unflagged", action="store_true")
+    # --seen --flagged 是合法组合，故星标单独建第二个互斥组
+    g2 = s_fl.add_mutually_exclusive_group()
+    g2.add_argument("--flagged", action="store_true")
+    g2.add_argument("--unflagged", action="store_true")
 
     # move
     s_mv = sub.add_parser("move", help="移动邮件到指定文件夹")
@@ -1332,7 +1479,9 @@ def _build_parser() -> argparse.ArgumentParser:
                       help="在正文末尾附上原邮件引用")
 
     # modify-date
-    s_md = sub.add_parser("modify-date", help="修改邮件的 Date 头部日期")
+    s_md = sub.add_parser("modify-date",
+                          help="修改邮件日期（全局改写 Date/Received 等所有日期串"
+                               "并同步 INTERNALDATE，而非只改 Date 头）")
     s_md.add_argument("--uid", type=int, required=True,
                       help="要修改的邮件 UID")
     s_md.add_argument("--folder", default="INBOX",
@@ -1452,9 +1601,18 @@ def _resolve_send_spec(args: argparse.Namespace) -> Dict[str, Any]:
             spec["body"] = str(data["body"])
         # 附件
         if "attachments" in data and data["attachments"]:
-            spec["attachments"] = [_abs(p) for p in data["attachments"]]
+            if not isinstance(data["attachments"], list):
+                # 传裸字符串会被 for 循环逐字符迭代，最终报一个指向错误位置的
+                # FileNotFoundError，很难定位。提前给清晰报错。
+                raise SystemExit(
+                    "--from-json 的 attachments 字段必须是数组"
+                    "（如 [\"./report.pdf\"]），不能直接写字符串")
+            spec["attachments"] = [_abs(str(p)) for p in data["attachments"]]
         # 内联图
         if "inline_images" in data and data["inline_images"]:
+            if not isinstance(data["inline_images"], list):
+                raise SystemExit(
+                    "--from-json 的 inline_images 字段必须是数组")
             normalized: List[Any] = []
             for item in data["inline_images"]:
                 if isinstance(item, str):
@@ -1693,6 +1851,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     elif args.cmd == "flag":
         seen = True if args.seen else (False if args.unseen else None)
         flagged = True if args.flagged else (False if args.unflagged else None)
+        if seen is None and flagged is None:
+            # 不传任何标志时 flag() 的 ops 为空、什么都不执行，若仍打印
+            # {"ok": true} 会误导调用方以为操作成功。
+            print("操作失败：未指定任何标志操作，请加 --seen/--unseen/"
+                  "--flagged/--unflagged 之一", file=sys.stderr)
+            return 6
         cli.flag(uid=args.uid, folder=args.folder, seen=seen, flagged=flagged)
         print(json.dumps({"ok": True, "uid": args.uid}, ensure_ascii=False))
 
@@ -1717,8 +1881,10 @@ def main(argv: Optional[List[str]] = None) -> int:
                     subject=spec["subject"],
                     body=spec["body"],
                     html=spec["html"],
-                    cc=spec.get("cc"),
-                    bcc=spec.get("bcc"),
+                    # cc/bcc 只随第一封投递：逐个发送的本质是把同一封信拆给 N 个
+                    # 主收件人，抄送/密送方只应收一份，否则会被重复投递 N 次
+                    cc=spec.get("cc") if i == 0 else None,
+                    bcc=spec.get("bcc") if i == 0 else None,
                     attachments=spec.get("attachments") or [],
                     inline_images=spec.get("inline_images") or [],
                     from_name=spec.get("from_name"),
@@ -1780,6 +1946,13 @@ def main(argv: Optional[List[str]] = None) -> int:
             if not eml_path:
                 raise RuntimeError("无法保存原始邮件为 .eml 文件")
 
+            # 2.5) 取回原邮件标志（未读/星标/已回复/自定义 keyword），APPEND 时
+            #    原样保留——否则硬编码 \Seen 会把未读邮件变已读、星标静默丢失。
+            #    \Recent/\Deleted 是瞬态标志，不带回新邮件。
+            orig_flags = cli.get_flags(uid=args.uid, folder=args.folder)
+            keep_flags = [f for f in orig_flags
+                          if f.lower() not in ("\\recent", "\\deleted")]
+
             # 3) 全局替换邮件中所有 RFC 2822 日期串（Date / Received / X-Received /
             #    Message-ID 等），而非只改 Date 头
             replaced = modify_eml_date(eml_path, new_dt)
@@ -1791,7 +1964,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             new_uid = cli.append(
                 folder=args.folder,
                 raw_email=modified_raw,
-                flags=["\\Seen"],
+                flags=keep_flags,
                 date=new_dt,
             )
 
@@ -1807,6 +1980,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 "folder": args.folder,
                 "new_date": email.utils.format_datetime(new_dt),
                 "replaced_dates": replaced,
+                "preserved_flags": keep_flags,
             }, ensure_ascii=False, indent=2))
 
         finally:
